@@ -44,42 +44,25 @@ def kMeans(dataSet, k, distMeans=dictEclud, createCent=randCent):
     # 创建矩阵来存储每个点的簇分配结果，一列记录簇索引值，一列存储误差
     # 这里的误差是指当前点到簇质心的距离
     clusterAssment = np.mat(np.zeros((m, 2)))
-    centroids = createCent(dataSet, k)
-    clusterChanged = True
+    centroids = createCent(dataSet, k)  # k个质心
+    clusterChanged = True  # 迭代标识变量
     while clusterChanged:
         clusterChanged = False
-        for i in range(m):
-            minDict = np.inf
+        for i in range(m):  # 对数据集中的每一个数据
+            minDict = np.inf  # 无穷大
             minIndex = -1
-            for j in range(k):
+            for j in range(k):  # 每一个质心
                 distJI = distMeans(centroids[j, :], dataSet[i, :])
-                if distJI < minDict:
+                if distJI < minDict:  # 寻找距离最近的质心
                     minDict = distJI
                     minIndex = j
-            if clusterAssment[i, 0] != minIndex:
+            if clusterAssment[i, 0] != minIndex:  # 簇分配结果发生变化，更新迭代标识
                 clusterChanged = True
             clusterAssment[i, :] = minIndex, minDict**2
         print centroids
         for cent in range(k):
+            # 获得给定簇的所有点
             ptsInClust = dataSet[np.nonzero(clusterAssment[:, 0].A == cent)[0]]
+            # 计算该簇下所有点的平均值，更新质心
             centroids[cent, :] = np.mean(ptsInClust, axis=0)
     return centroids, clusterAssment
-
-
-s
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
