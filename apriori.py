@@ -52,6 +52,7 @@ def aprioriGen(Lk, k):
         k: 项集元素个数'''
     retList = []
     lenLk = len(Lk)
+    # 前k-2个项相同时，将两个集合合并
     for i in range(lenLk):
         for j in range(i+1, lenLk):
             L1 = list(Lk[i])[:k-2]
@@ -64,6 +65,12 @@ def aprioriGen(Lk, k):
 
 
 def apriori(dataSet, minSupport=0.5):
+    '''apriori算法伪代码：
+        当集合中项的个数大于0时
+           构建一个k个项组成的候选项集的列表
+           检查数据以确认每个项集都是频繁的
+           保留频繁项集并构建K+1项组成的候选项集的列表
+    '''
     C1 = createC1(dataSet)
     D = map(set, dataSet)
     L1, supportData = scanD(D, C1, minSupport)
@@ -72,7 +79,49 @@ def apriori(dataSet, minSupport=0.5):
     while len(L[k-2]) > 0:
         Ck = aprioriGen(L[k-2], k)
         Lk, supK = scanD(D, Ck, minSupport)
-        supportData.update(supK)
+        supportData.update(supK)  # 字典的更新
         L.append(Lk)
         k += 1
     return L, supportData
+
+
+# 频繁项集中挖掘关联规则
+def generateRules(L, supportData, minConf=0.7):
+    ''' L:频繁项集列表
+        supportData: 包含哪些频繁项集支持数据的字典
+        minConf: 最小可信度阈值
+    '''
+    bigRuleList = []
+    # 遍历L中的每一个频繁项集并对每个频繁项集创建只包含单个元素集合的列表H1
+    # 无法从单元素项集中构建关联规则，所以从包含两个或更多元素的项集开始构建规则
+    for i in range(1, len(L)):
+        for freqSet in L[i]:  # 频繁项集列表中的每一项
+            H1 = [frozenset([item]) for item in freqSet]
+            if (i > 1):  # 频繁项集的元素数目超过2，考虑做进一步的合并
+                rulesFromConseq(freqSet, H1, supportData, bigRuleList, minConf)
+            else:  # 如果项集只有两个元素，计算可信度
+                calcConf(freqSet, H1, supportData, bigRuleList, minConf)
+    return bigRuleList
+
+
+def calcConf(freqSet, H, supportData, brl, minConf=.7):
+    '''计算规则的可信度以及找到满足最小可信度要求的规则'''
+    prunedH = []
+    for conseq in H:  # H中的所有候选集并计算可信度
+        conf = supportData[freqSet] / supportData[freqSet-conseq]  # 计算可信度
+        if conf >= minConf:  # 满足最小可信度
+            print freqSet-conseq, '-->', conseq, 'conf:', conf
+            brl.append((freqSet-conseq, conseq, conf))
+            prunedH.append(conseq)
+    return prunedH  # 返回满足最小可信度要求的规则列表
+
+
+def rulesFromConseq(freqSet, H, supportData, brl, minConf=.7):
+    '''freqSet: 频繁项集
+        H: 可以出现在规则后件的元素列表'''
+    m = len(H[0])  # 频繁集大小
+    if (len(freqSet) > (m+1)):
+        Hmp1 = aprioriGen(H, m+1)
+        Hmp1 = calcConf(freqSet, Hmp1, supportData, brl, minConf)
+        if (len(Hmp1) > 1):
+            rulesFromConseq(freqSet, Hmp1, supportData, brl, minConf)
