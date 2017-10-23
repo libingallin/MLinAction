@@ -4,10 +4,10 @@ Created on Sat Sep 23 15:47:26 2017
 
 @author: libing
 
-naive bayes classifier
+Naive Bayes Classifier
 
 """
-from math import log
+
 import numpy as np
 
 
@@ -20,7 +20,7 @@ def loadDataSet():
                    ['mr', 'licks', 'ate', 'my', 'steak', 'how', 'to', 'stop',
                     'him'],
                    ['quit', 'buying', 'worthless', 'dog', 'food', 'stupid']]
-    classVec = [0, 1, 0, 1, 0, 1]  # 1 points to bad, 0 points to normal
+    classVec = [0, 1, 0, 1, 0, 1]  # 1代表侮辱性文字，0代表正常言论
     return postingList, classVec
 
 
@@ -33,12 +33,11 @@ def createVocabList(dataSet):
 
 
 def setOfWords2Vec(vocabList, inputSet):
-    '''input:  vocabulary and a input text
-       output: vector of input text, element is 0 or 1,
-                1 point to appearance, 0 not'''
+    '''该函数的输入参数为词汇表及某个文档，输出的是文档向量
+       向量的每一元素为1或0，分别表示词汇表的单词在输入文档中是否出现'''
     returnVec = [0] * len(vocabList)
-    for word in inputSet:
-        if word in vocabList:
+    for word in inputSet:  # 遍历文档中的所有单词
+        if word in vocabList:  # 出现词汇表中的单词
             returnVec[vocabList.index(word)] = 1
         else:
             print ('the word: %s is not in  my vocabulary!' % word)
@@ -46,62 +45,61 @@ def setOfWords2Vec(vocabList, inputSet):
 
 
 def trainNB0(trainArr, trainCategory):
-    ''' 朴素贝叶斯训练函数
-        输入参数为文档矩阵trainArr,以及
-        每篇文档类别标签构成的向量trainCategory'''
-    numTrainDocs = len(trainArr)  # 文档矩阵中的文档数目
-    numWords = len(trainArr[0])   # 每篇文档的特征个数
-    # 计算先验概率P(c)，二分类问题，所以只需计算一个类别的，另一个用1减去这个
-    pAbusie = np.sum(trainCategory) / float(numTrainDocs)
+    '''朴素贝叶斯分类器训练函数
+       trainArr: 经过setOfWords2Vec处理的文档
+       trainCategoty: 每篇文档类别标签构成的向量
+    '''
+    numTrainDocs = len(trainArr)  # 文档数目
+    numWords = len(trainArr[0])
+    pAbusive = np.sum(trainCategory) / float(numTrainDocs)  # 侮辱文档(类别1)的概率
+    # p0Num = np.zeros(numWords)
+    # p1Num = np.zeros(numWords)
+    # 为避免计算时某一个概率为0，最后的乘积也为0
+    # 将所有词的出现次数初始化为1，并将分母初始化为2
     p0Num = np.ones(numWords)
     p1Num = np.ones(numWords)
-    p0Denom = 2.0
-    p1Denom = 2.0
+    p0Denom = 0.0
+    p1Denom = 0.0
     for i in range(numTrainDocs):
-        if trainCategory[i] == 1:  # 类别为1
-            p1Num += trainArr[i]  # 统计文档中出现的各个单词个数
-            p1Denom += np.sum(trainArr[i])  # 统计文档的总单词个数
-        else:  # 类别为0
+        if trainCategory[i] == 1:  # 类别为1(侮辱)的文档
+            p1Num += trainArr[i]   # 出现的单词的数目
+            p1Denom += np.sum(trainArr[i])  # 出现的单词总数
+        else:  # 类别为0(正常)的文档
             p0Num += trainArr[i]
             p0Denom += np.sum(trainArr[i])
-    p1Vect = log(p1Num/p1Denom)  # 类别1中各单词频率
-    p0Vect = log(p0Num/p1Denom)  # 类别0中各单词频率
-    return p0Vect, p1Vect, pAbusie
+    # 由于太多很小的数相乘，会造成下溢出或得不到正确的答案。
+    # 一种解决是对乘积取自然对数，采用自然对数进行处理不会有任何损失。
+    p1Vect = np.log(p1Num / p1Denom)
+    p0Vect = np.log(p0Num / p0Denom)
+    return p0Vect, p1Vect, pAbusive
 
 
 def classifyNB(vec2Classify, p0Vec, p1Vec, pClass1):
-    '''朴素贝叶斯分类函数'''
-    p1 = np.sum(vec2Classify * p1Vec) + log(pClass1)  # 各特征概率
-    p0 = np.sum(vec2Classify * p0Vec) + log(1.0 - pClass1)  # 各特征概率
+    '''朴素贝叶斯分类函数
+       vec2Classify: 要分类的向量
+       剩下3个参数是利用trainNB0()得到的'''
+    p1 = np.sum(vec2Classify * p1Vec) + np.log(pClass1)
+    p0 = np.sum(vec2Classify * p0Vec) + np.log(1.0-pClass1)
     if p1 > p0:
         return 1
-    else:
-        return 0
+    return 0
 
 
 def testingNB():
-    listOPosts, listClasses = loadDataSet()  # 测试文档及其类别向量
-    myVocabList = createVocabList(listOPosts)  # 词汇表
+    '''这是一个便利函数(convenience function),该函数封装所有操作，以节省时间'''
+    listOfPosts, listClasses = loadDataSet()
+    myVocabList = createVocabList(listOfPosts)
     trainArr = []
-    for postinDoc in listOPosts():
+    for postinDoc in listOfPosts:
         trainArr.append(setOfWords2Vec(myVocabList, postinDoc))
     p0V, p1V, pAb = trainNB0(np.array(trainArr), np.array(listClasses))
     testEntry = ['love', 'my', 'dalmation']
     thisDoc = np.array(setOfWords2Vec(myVocabList, testEntry))
-    print testEntry, 'Classified as: ', classifyNB(thisDoc, p0V, p1V, pAb)
+    print testEntry, 'classified as: ', classifyNB(thisDoc, p0V, p1V, pAb)
     testEntry = ['stupid', 'garbage']
     thisDoc = np.array(setOfWords2Vec(myVocabList, testEntry))
-    print testEntry, 'Classified as: ', classifyNB(thisDoc, p0V, p1V, pAb)
-
-
-
-
-
-
-
-
-
-
+    print testEntry, 'classified as: ', classifyNB(thisDoc, p0V, p1V, pAb)
+    
 
 
 
