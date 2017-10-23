@@ -4,7 +4,6 @@ Created on Thu Oct 19 10:52:12 2017
 
 @author: libing
 """
-
 import numpy as np
 import matplotlib.pyplot as plt
 
