@@ -15,14 +15,17 @@ import re
 
 
 def loadDataSet():
-    postingList = [['my', 'dog', 'has', 'flea', 'problems', 'help', 'please'],
+    postingList = [['my', 'dog', 'has', 'flea', 'problems', 'help',
+                    'please'],
                    ['maybe', 'not', 'take', 'him', 'to', 'dog', 'park',
                     'stupid'],
-                   ['my', 'dalmation', 'is', 'so', 'cute', 'I', 'love', 'him'],
-                   ['stop', 'posting', 'stupid', 'worthless', 'garbage'],
-                   ['mr', 'licks', 'ate', 'my', 'steak', 'how', 'to', 'stop',
+                   ['my', 'dalmation', 'is', 'so', 'cute', 'I', 'love',
                     'him'],
-                   ['quit', 'buying', 'worthless', 'dog', 'food', 'stupid']]
+                   ['stop', 'posting', 'stupid', 'worthless', 'garbage'],
+                   ['mr', 'licks', 'ate', 'my', 'steak', 'how', 'to',
+                    'stop', 'him'],
+                   ['quit', 'buying', 'worthless', 'dog', 'food',
+                    'stupid']]
     classVec = [0, 1, 0, 1, 0, 1]  # 1代表侮辱性文字，0代表正常言论
     return postingList, classVec
 
@@ -159,32 +162,60 @@ def spamTest():
         if classifyNB(np.array(wordVector), p0V, p1V, pSpam) != \
            classList[docIndex]:
             errorCount += 1
-    print 'the error rate is: ', float((errorCount) / len(testSet))
+    print 'the error rate is: ', float((errorCount)/len(testSet))
 
 
-def calcMosttFreq(vocabList, fullText):
+def calcMostFreq(vocabList, fullText):
     '''遍历词汇表中的没个词并统计它在文本中出现的次数，然后排序（由高到低），
         最后返回次数最高的30个词'''
     freqDict = {}  # 单词频率字典
     for token in vocabList:
         freqDict[token] = fullText.count(token)  # 统计次数
-        sortFreqDict = sorted(freqDict.iteritems(), key=operator.itemgetter(1),
-                              reverse=True)  # 由高到低排序
-    return sortFreqDict
+    sortFreqDict = sorted(freqDict.iteritems(), key=operator.itemgetter(1),
+                          reverse=True)  # 由高到低排序
+    return sortFreqDict  # 返回的是列表，每一项是(键，值)
 
 
-def 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+def localWords(feed1, feed0):
+    '''使用两个RSS源作为参数。RSS源要在函数外导入，这样做的原因是RSS源会随时间而改变。
+        如果想通过改变代码来比较程执行的差异，就应该使用相同的输入。重新加载RSS源就会
+        得到新的数据但很难确定是代码原因还是输入原因导致输出结果的改变。
+    '''
+    docList = []
+    classList = []
+    fullText = []
+    minLen = min(len(feed1['entries']), len(feed0['entries']))
+    for i in range(minLen):  # 每次访问一条RSS源
+        wordList = textParse(feed1['entries'][i]['summary'])
+        docList.append(wordList)
+        fullText.extend(docList)
+        classList.append(1)
+        wordList = textParse(feed0['entries'][i]['summary'])
+        docList.append(wordList)
+        fullText.extend(docList)
+        classList.append(0)
+    vocabList = createVocabList(docList)
+    top30Words = calcMostFreq(vocabList, fullText)
+    for pairW in top30Words:
+        if pairW[0] in vocabList:
+            vocabList.remove(pairW[0])  # 去掉次数最高的那些词
+    trainingSet = range(2*minLen)
+    testSet = []
+    for i in range(20):
+        randIndex = int(np.random.uniform(0, len(trainingSet)))
+        testSet.append(trainingSet[randIndex])
+        del trainingSet[randIndex]
+    trainMat = []
+    trainClass = []
+    for docIndex in trainingSet:
+        trainMat.append(bagOfWords2Vec(vocabList, docList[docIndex]))
+        trainClass.append(classList[docIndex])
+    p0V, p1V, pSpam = trainNB0(np.array(trainMat), np.array(trainClass))
+    errorCount = 0
+    for docIndex in testSet:
+        wordVector = bagOfWords2Vec(vocabList, docList[docIndex])
+        if classifyNB(np.array(wordVector), p0V, p1V, pSpam) != \
+           classList[docIndex]:
+            errorCount += 1
+    print 'the error rate is: ', float(errorCount)/len(testSet)
+    return vocabList, p0V, p1V
