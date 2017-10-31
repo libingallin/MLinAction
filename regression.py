@@ -183,8 +183,7 @@ def regularize(xMat):
     inMat = xMat.copy()
     inMeans = np.mean(inMat, 0)
     inVar = np.var(xMat, 0)
-    inMat = (inMat-inMeans) / inVar
-    return inMat
+    return (inMat-inMeans) / inVar
 
 
 def stageWise(xArr, yArr, eps=0.01, numIt=100):
