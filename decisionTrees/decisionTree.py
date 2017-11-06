@@ -9,6 +9,7 @@ decision trees:
 """
 import math
 import operator
+import pickle
 
 
 def createDataSet():
@@ -45,7 +46,7 @@ def createDataSet():
 
 
 def calcShannonEnt(dataSet):
-    '''计算给定数据集的熵'''
+    '''计算给定数据集的熵(entropy)'''
     numEntries = len(dataSet)  # 数据集中实例总数
     labelCounts = {}  # (类别：出现次数)
     for featVec in dataSet:
@@ -61,7 +62,7 @@ def calcShannonEnt(dataSet):
 
 
 def splitDataSet(dataSet, axis, value):
-    '''按照给定特征(数据第axis个特征取值value)划分数据集'''
+    '''按照给定特征(数据第axis个特征的取值为value)划分数据集'''
     retDataSet = []
     for featVec in dataSet:  # 遍历数据集
         if featVec[axis] == value:
@@ -84,10 +85,14 @@ def chooseBestFeat2Split(dataSet):
         newEntropy = 0.0
         for value in uniqueVals:
             subDataSet = splitDataSet(dataSet, i, value)
+            # 不同的分支节点所包含的样本数不同，给节点赋予权重prob
+            # 样本数越多的分支节点的影响越大
             prob = len(subDataSet) / float(len(dataSet))
-            newEntropy += prob * calcShannonEnt(subDataSet)
-        infoGain = baseEntropy - newEntropy
+            newEntropy += prob * calcShannonEnt(subDataSet)  # 该自己的信息增益
+        infoGain = baseEntropy - newEntropy       # gain infomation
+        # infoGainRation = infoGain / baseEntropy # infomation gain ratio
         # print infoGain
+        # 选择信息增益最大的特征
         if infoGain > bestInfoGain:
             bestInfoGain = infoGain
             bestFeature = i
@@ -128,29 +133,53 @@ def createTree(dataSet, labels):
     return myTree
 
 
-if __name__ == '__main__':
-    mydata, labels = createDataSet()
-    myTree = createTree(mydata, labels)
-    print myTree
+def outputTree():
+    dataSet, labels = createDataSet()
+    myTree = createTree(dataSet, labels)
+    return myTree
 
 
+def classify(inputTree, featLabels, testVec):
+    '''使用决策树进行分类'''
+    firstStr = inputTree.keys()[0]   # 根节点
+    secondDict = inputTree[firstStr]
+    featIndex = featLabels.index(firstStr)
+    for key in secondDict.keys():
+        if testVec[featIndex] == key:  # 满足分支条件
+            if type(secondDict[key]).__name__ == 'dict':
+                classLabel = classify(secondDict[key], featLabels, testVec)
+            else:
+                classLabel = secondDict[key]
+    return classLabel
 
 
+def testing():
+    dataSet, labels = createDataSet()
+    myTree = createTree(dataSet, labels)
+    featLabels = ['age', 'work', 'house', 'creidt']
+    testVec = ['young', 'yes', 'no', 'normal']
+    print classify(myTree, featLabels, testVec)
+    testVec = ['young', 'no', 'no', 'great']
+    print classify(myTree, featLabels, testVec)
 
 
+# 将分类器存储在硬盘上，而不用每次对数据分类时重新学习一遍
+# 节省时间，每次在执行分类时调用已构造好的决策树
+def storeTree(inputTree, filename):
+    fw = open(filename, 'w')
+    pickle.dump(inputTree, fw)
+    fw.close()
 
 
+def grabTree(filename):
+    fr = open(filename)
+    return pickle.load(fr)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+# 使用决策树预测隐形眼镜类型
+def forecastLenses():
+    fr = open('lenses.txt')
+    lenses = [inst.strip().split('\t') for inst in fr.readlines()]  # 嵌套列表
+    lensesLabels = ['age', 'prescript', 'astigmatic', 'tearRate']
+    lensesTree = createTree(lenses, lensesLabels)
+    return lensesTree

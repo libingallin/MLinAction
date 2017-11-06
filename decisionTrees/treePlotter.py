@@ -102,7 +102,7 @@ def createPlot(inTree):
     plotTree.totalD = float(getTreeDepth(inTree))
     plotTree.x0ff = -0.5/plotTree.totalW
     plotTree.y0ff = 1.0
-    plotTree(inTree, (0.5, 1.0), '')
+    plotTree(inTree, (0.5, 1.0), '')s
     plt.show()
 
 
