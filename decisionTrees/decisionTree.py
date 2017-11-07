@@ -88,7 +88,7 @@ def chooseBestFeat2Split(dataSet):
             # 不同的分支节点所包含的样本数不同，给节点赋予权重prob
             # 样本数越多的分支节点的影响越大
             prob = len(subDataSet) / float(len(dataSet))
-            newEntropy += prob * calcShannonEnt(subDataSet)  # 该自己的信息增益
+            newEntropy += prob * calcShannonEnt(subDataSet)  # 该子集的信息增益
         infoGain = baseEntropy - newEntropy       # gain infomation
         # infoGainRation = infoGain / baseEntropy # infomation gain ratio
         # print infoGain
