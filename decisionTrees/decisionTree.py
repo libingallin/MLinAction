@@ -61,8 +61,25 @@ def calcShannonEnt(dataSet):
     return shannonEnt  # 数据集的熵
 
 
-def splitDataSet(dataSet, axis, value):
-    '''按照给定特征(数据第axis个特征的取值为value)划分数据集'''
+def calcGiniIndex(dataSet):
+    '''Gini Index'''
+    numEntries = len(dataSet)
+    labelCounts = {}
+    for featVect in dataSet:
+        currentLabel = featVect[-1]
+        if currentLabel not in labelCounts.keys():
+            labelCounts[currentLabel] = 0
+        labelCounts[currentLabel] += 1
+    giniIndex = 1.0
+    for key in labelCounts:
+        prob = float(labelCounts[key]) / numEntries  # 计算每个类别的概率
+        giniIndex -= prob * prob
+    return giniIndex
+
+
+def splitDataSet1(dataSet, axis, value):
+    '''按照给定特征(数据第axis个特征的取值为value)划分数据集
+        适用：信息增益(ID3)，信息增益比(C4.5)'''
     retDataSet = []
     for featVec in dataSet:  # 遍历数据集
         if featVec[axis] == value:
@@ -72,7 +89,26 @@ def splitDataSet(dataSet, axis, value):
     return retDataSet
 
 
-def chooseBestFeat2Split(dataSet):
+def splitDataSet2(dataSet, axis, value):
+    '''按照给定特征划分数据集
+        两个子集：一个是值等于value的子集，一个是值不等于value的子集
+        适用：基尼指数(CART)
+    '''
+    retDataSet1 = []
+    retDataSet2 = []
+    for featVec in dataSet:
+        if featVec[axis] == value:
+            reducedFeatVec = featVec[: axis]
+            reducedFeatVec.extend(featVec[axis+1:])
+            retDataSet1.append(reducedFeatVec)
+        else:
+            reducedFeatVec = featVec[:axis]
+            reducedFeatVec.extend(featVec[axis+1:])
+            retDataSet2.append(reducedFeatVec)
+    return retDataSet1, retDataSet2
+
+
+def chooseBestFeat2Split1(dataSet):
     '''选择最好的数据集划分方式
         信息增益(gain information)
     '''
@@ -84,7 +120,7 @@ def chooseBestFeat2Split(dataSet):
         uniqueVals = set([example[i] for example in dataSet])  # 第i个特征的所有取值
         newEntropy = 0.0
         for value in uniqueVals:
-            subDataSet = splitDataSet(dataSet, i, value)
+            subDataSet = splitDataSet1(dataSet, i, value)
             # 不同的分支节点所包含的样本数不同，给节点赋予权重prob
             # 样本数越多的分支节点的影响越大
             prob = len(subDataSet) / float(len(dataSet))
@@ -95,6 +131,30 @@ def chooseBestFeat2Split(dataSet):
         # 选择信息增益最大的特征
         if infoGain > bestInfoGain:
             bestInfoGain = infoGain
+            bestFeature = i
+    return bestFeature
+
+
+def chooseBestFeat2Split2(dataSet):
+    '''按照基尼指数划分数据集(离散)'''
+    numFeatures = len(dataSet[0]) - 1  # 特征个数
+    bestFeature = -1
+    gini = 999999   # 初始化基尼指数
+    for i in range(numFeatures):  # 遍历每一个特征
+        uniqueVals = set([example[i] for example in dataSet])  # 第i个特征的所有取值
+        newgini = 0.0
+        for value in uniqueVals:
+            subDataSet1, subDataSet2 = splitDataSet2(dataSet, i, value)
+            # 不同的分支节点所包含的样本数不同，给节点赋予权重prob
+            # 样本数越多的分支节点的影响越大
+            prob1 = len(subDataSet1) / float(len(dataSet))
+            prob2 = len(subDataSet2) / float(len(dataSet))
+            newgini = prob1*calcGiniIndex(subDataSet1) + \
+                prob2*calcGiniIndex(subDataSet2)
+            # print newgini
+        # 选择基尼指数最小的的特征
+        if newgini < gini:
+            gini = newgini
             bestFeature = i
     return bestFeature
 
@@ -116,7 +176,7 @@ def createTree(dataSet, labels):
         return classList[0]
     if len(dataSet[0]) == 1:   # 遍历完所有特征时返回出现次数最多的类别
         return majorityCnt(classList)
-    bestFeat = chooseBestFeat2Split(dataSet)  # 选择最佳划分特征
+    bestFeat = chooseBestFeat2Split1(dataSet)  # 选择最佳划分特征
     bestFeatLabel = labels[bestFeat]  # 对应的类别标签
     myTree = {bestFeatLabel: {}}
     del (labels[bestFeat])
@@ -129,7 +189,7 @@ def createTree(dataSet, labels):
         # 使用新变量subLabels代替原始列表
         subLabels = labels[:]
         myTree[bestFeatLabel][value] = createTree(
-                splitDataSet(dataSet, bestFeat, value), subLabels)  # 递归
+                splitDataSet1(dataSet, bestFeat, value), subLabels)  # 递归
     return myTree
 
 
